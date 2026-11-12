@@ -275,15 +275,19 @@ model AuditLog {
 - **Cookies bring CSRF risk.** `SameSite=Lax` plus the same-origin proxy covers it for this project; state-changing routes never use `GET`.
 - **Self-registration creates a `REQUESTER` only.** Otherwise anyone could sign up as an admin. Officers and admins are created by an admin.
 - **Guards are global and opt-out.** A forgotten decorator then fails closed (401) rather than open.
+- **Login and registration are rate-limited** (5 attempts per minute per client) to slow password guessing; everything else allows 100 per minute.
+- **Roles ride in the access token,** so a role check needs no database query. The cost: a role change or deactivation ends the refresh session at once, but an already-issued access token keeps working until it expires (up to 15 minutes).
 
 **Create (API).**
 
 ```
-src/main.ts                       cookie-parser, helmet, ValidationPipe({ whitelist: true }), Swagger at /docs
+src/main.ts  src/app.setup.ts     cookie-parser, helmet, ValidationPipe({ whitelist: true }), Swagger at /docs
+                                  (app.setup.ts is shared by main.ts and the e2e tests)
 src/auth/
   auth.module.ts  auth.controller.ts  auth.service.ts
-  strategies/jwt.strategy.ts      reads the token from the cookie
-  guards/jwt-auth.guard.ts  guards/roles.guard.ts
+  guards/jwt-auth.guard.ts        reads and verifies the token from the cookie
+  guards/roles.guard.ts
+  auth.cookies.ts                 cookie options in one place
   decorators/public.decorator.ts  roles.decorator.ts  current-user.decorator.ts
   dto/register.dto.ts  login.dto.ts
 src/users/
@@ -304,7 +308,7 @@ res.cookie('access_token', accessToken, {
 });
 ```
 
-**Create (web).** `next.config.ts` (the rewrite), `lib/api.ts` (fetch wrapper: `credentials: "include"`, one silent refresh-and-retry on 401), `middleware.ts` (redirects to `/login` when the cookie is missing), `app/(public)/login/page.tsx`, `app/(public)/register/page.tsx`. Keep these two pages plain for now; styling comes in Phase 4.
+**Create (web).** `next.config.ts` (the rewrite), `lib/api.ts` (fetch wrapper: `credentials: "include"`, one silent refresh-and-retry on 401), `lib/auth.ts`, `proxy.ts` (Next.js 16's name for middleware; redirects to `/login` when no session cookie exists), `app/(auth)/login/page.tsx`, `app/(auth)/register/page.tsx`, and a temporary `app/dashboard/page.tsx` that shows the signed-in user. Keep these pages plain for now; styling comes in Phase 4.
 
 **Endpoints.**
 
@@ -328,6 +332,8 @@ res.cookie('access_token', accessToken, {
 - A registered requester gets **403** on `GET /users`; a signed-out caller gets **401**.
 - After logout, `POST /auth/refresh` fails.
 - `AuditLog` has rows for login, logout and user creation.
+- In the browser: `/dashboard` redirects to `/login` when signed out; after signing in it shows your name and role; the "admin-only endpoint" button gives 200 for the admin and 403 for a requester.
+- `npm run test:e2e -w api` passes (it automates most of the list above).
 
 ---
 
@@ -506,10 +512,10 @@ e2e tests run against a separate database (`DATABASE_URL` from `.env.test`), res
 3. **Render (API).** New Web Service from the repository, root directory `apps/api`.
    - Build: `npm ci && npx prisma generate && npm run build`
    - Start: `npx prisma migrate deploy && node dist/main.js`
-   - Env: `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CLOUDINARY_*`, `WEB_ORIGIN`, `NODE_ENV=production`
+   - Env: `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_REFRESH_TTL_SECONDS`, `CLOUDINARY_*`, `WEB_ORIGIN`, `NODE_ENV=production`
    - Health check path: `/health`
    - Run the seed once with production admin credentials, then change that password.
-   - `app.set('trust proxy', 1)` so secure cookies and client IPs work behind Render's proxy.
+   - Set `TRUST_PROXY_HOPS` so `req.ip` is the real visitor (expected: 2, for Vercel then Render). Verify by signing in from two networks and checking the `ip` column in `AuditLog`; if every row shows the same address, the login rate limit is being shared by all users.
 4. **Vercel (web).** Import the repository, root directory `apps/web`, env `API_URL=https://<your-api>.onrender.com` (used by the rewrite).
 5. **Smoke test in production,** then record the URLs in the README.
 

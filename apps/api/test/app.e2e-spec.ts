@@ -1,30 +1,23 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
-import { App } from 'supertest/types.js';
-import { AppModule } from './../src/app.module.js';
+import { createTestApp } from './helpers.js';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('Health (e2e)', () => {
+  let app: NestExpressApplication;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    app = await createTestApp();
   });
 
-  it('/health (GET)', async () => {
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('GET /health is public and reports the database', async () => {
     const response = await request(app.getHttpServer())
       .get('/health')
       .expect(200);
     expect(response.body.status).toBe('ok');
     expect(response.body.database).toBe('connected');
-  });
-
-  afterEach(async () => {
-    await app.close();
   });
 });
