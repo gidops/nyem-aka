@@ -1,11 +1,29 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { PrismaService } from './prisma/prisma.service.js';
 
 @Controller()
 export class AppController {
-  // Liveness probe: used by Render's health check and by us to confirm the API is up.
-  // Phase 1 extends this to report whether the database is reachable.
+  constructor(private readonly prisma: PrismaService) {}
+
+  // Health probe: used by Render's health check and by us to confirm the API is up.
+  // Returns 503 when the database is unreachable, so a deploy that cannot reach
+  // its database is reported as unhealthy rather than "ok".
   @Get('health')
-  health() {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+  async health() {
+    const timestamp = new Date().toISOString();
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+    } catch {
+      throw new ServiceUnavailableException({
+        status: 'error',
+        database: 'disconnected',
+        timestamp,
+      });
+    }
+    return { status: 'ok', database: 'connected', timestamp };
   }
 }

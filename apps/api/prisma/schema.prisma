@@ -1,0 +1,178 @@
+// Nyem Aka data model.
+// Connection URLs are not declared here in Prisma 7: the CLI reads prisma.config.ts,
+// and the running API passes DATABASE_URL to a driver adapter.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleName {
+  REQUESTER
+  OFFICER
+  ADMIN
+}
+
+enum RequestStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// One role has many users (one-to-many).
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        RoleName @unique
+  description String?
+  users       User[]
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  fullName         String
+  department       String?
+  isActive         Boolean  @default(true) // users are deactivated, never deleted
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  roleId Int
+  role   Role @relation(fields: [roleId], references: [id])
+
+  // A user relates to requests in three different ways, so the relations are named.
+  requests            ServiceRequest[] @relation("RequestedBy")
+  assignmentsReceived Assignment[]     @relation("AssignedOfficer")
+  assignmentsMade     Assignment[]     @relation("AssignedBy")
+  statusLogs          StatusLog[]
+  attachments         Attachment[]
+  auditLogs           AuditLog[]
+
+  @@index([roleId])
+}
+
+model Category {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  isActive    Boolean          @default(true)
+  requests    ServiceRequest[]
+}
+
+model ServiceRequest {
+  id          String        @id @default(cuid())
+  number      Int           @unique @default(autoincrement()) // shown to users as NA-000042
+  title       String
+  description String
+  location    String
+  priority    Priority      @default(MEDIUM)
+  status      RequestStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  completedAt DateTime?
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  requesterId String
+  requester   User   @relation("RequestedBy", fields: [requesterId], references: [id])
+
+  assignments Assignment[]
+  statusLogs  StatusLog[]
+  attachments Attachment[]
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([categoryId])
+  @@index([createdAt])
+}
+
+// Join table between ServiceRequest and User (officer): many-to-many with extra data.
+// Reassigning creates a new row and sets the old one inactive, so history is kept.
+model Assignment {
+  id           String    @id @default(cuid())
+  note         String?
+  isActive     Boolean   @default(true)
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  officerId String
+  officer   User   @relation("AssignedOfficer", fields: [officerId], references: [id])
+
+  assignedById String
+  assignedBy   User   @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  @@index([officerId, isActive])
+  @@index([requestId])
+}
+
+// The timeline of one request, visible to its requester.
+model StatusLog {
+  id         String         @id @default(cuid())
+  fromStatus RequestStatus? // null for the first entry (request created)
+  toStatus   RequestStatus
+  note       String?
+  createdAt  DateTime       @default(now())
+
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  changedById String
+  changedBy   User   @relation(fields: [changedById], references: [id])
+
+  @@index([requestId, createdAt])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  url       String
+  publicId  String // Cloudinary id, needed to delete the file
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  requestId String
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  @@index([requestId])
+}
+
+// System-wide record of who did what. Admin-only.
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String // e.g. "auth.login", "request.assigned", "user.role_changed"
+  entity    String // e.g. "ServiceRequest"
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  actorId String? // null for anonymous events such as a failed login
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}

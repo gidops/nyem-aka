@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Phase 0 (repository and tooling) is done.** Both apps are scaffolded and boot; the API has only `GET /health`, and the web app is still the default Next.js page. Everything under "Planned layout" and "Architecture decisions" beyond that is the plan from `docs/BUILD_PLAN.md`, not yet built. As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
+**Phases 0 and 1 are done.** Both apps boot. The API has the full Prisma schema (8 models), one migration, a seed, a global `PrismaModule`, and a database-aware `GET /health`; it has no feature modules yet. The web app is still the default Next.js page. Everything under "Planned layout" and "Architecture decisions" beyond that is the plan from `docs/BUILD_PLAN.md`, not yet built. As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
 
 The `CLAUDE.md` in the home directory (`/home/PSL-TECH-DEV-02/CLAUDE.md`) describes a different project (AATC VMS). Its stack, commands and architecture do **not** apply here.
 
@@ -62,12 +62,23 @@ npm run lint -w web                           # eslint
 npm run build                                 # build both apps
 ```
 
-Planned, not available until Phase 1 (run inside `apps/api`): `npx prisma migrate dev --name <name>`, `npx prisma db seed`.
+Database commands run inside `apps/api` (the Prisma CLI reads `prisma.config.ts` there):
+
+```bash
+npx prisma migrate dev --name <name>          # create and apply a migration
+npx prisma generate                           # REQUIRED after every schema change
+npx prisma db seed                            # roles, categories, first admin (safe to re-run)
+npx prisma studio                             # browse the data
+```
+
+`npm run test:e2e -w api` needs the local database running; unit tests do not.
 
 ## Toolchain facts that differ from older tutorials
 
 - **The API is NestJS 12 and ESM-only.** Relative imports end in `.js` (`./app.module.js`), `__dirname` does not exist (use `import.meta.dirname`), tests run on **Vitest** (`vi.fn()`, not `jest.fn()`), and linting is **oxlint**, not ESLint. `apps/api/AGENTS.md` links the current Nest docs; read the relevant page before using a Nest API from memory.
 - **The web app is Next.js 16.** `apps/web/AGENTS.md` says to read the guide in `node_modules/next/dist/docs/` before writing Next code, because conventions have changed.
+- **Prisma is pinned to 7.10.1** (npm's `latest` tag pointed at an 8.0 release candidate when this was set up). Prisma 7 differs from older tutorials: the schema has no `url`; the CLI gets `DIRECT_URL` from `apps/api/prisma.config.ts`; the runtime client needs a driver adapter and gets `DATABASE_URL` in `src/prisma/prisma.service.ts`; the client is generated into `apps/api/src/generated/prisma` (git-ignored, lint-ignored) and imported as `../generated/prisma/client.js`, not from `@prisma/client`; `migrate dev` does not regenerate the client.
+- **Specs that build a provider depending on `PrismaService` must supply a mock** (see `apps/api/src/app.controller.spec.ts`).
 - **Local Postgres is on port 5433**, because 5432 on this machine is used by another project. Local connection string: `postgresql://nyemaka:nyemaka@localhost:5433/nyemaka`.
 
 ## Architecture decisions that span files
@@ -79,7 +90,7 @@ Planned, not available until Phase 1 (run inside `apps/api`): `npx prisma migrat
 - **Assignments keep history.** Reassigning sets the old `Assignment.isActive = false` and creates a new row; rows are never overwritten.
 - **Two logs, two purposes.** `StatusLog` is the user-visible timeline of one request. `AuditLog` is the admin-only record of who did what across the system (logins, user changes, assignments, exports).
 - **Users are deactivated, not deleted** (`isActive`), so history keeps its foreign keys.
-- **Neon needs two URLs:** `DATABASE_URL` (pooled, runtime) and `DIRECT_URL` (direct, migrations).
+- **Two database URLs:** `DATABASE_URL` (runtime; Neon's pooled string in production) and `DIRECT_URL` (Prisma CLI; Neon's direct string). Locally both point at the Docker database.
 
 ## Design direction
 

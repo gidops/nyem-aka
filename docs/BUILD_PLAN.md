@@ -71,17 +71,20 @@ nyem-aka/
 | ServiceRequest ↔ User (officer) | Many-to-many with payload | `Assignment` join table |
 | User → AuditLog | One-to-many, optional | `AuditLog.actorId` (nullable) |
 
-**Create.** `apps/api/prisma/schema.prisma`, `apps/api/prisma/seed.ts`, `apps/api/src/prisma/prisma.module.ts`, `prisma.service.ts`, `apps/api/.env`.
+**Create.** `apps/api/prisma/schema.prisma`, `apps/api/prisma.config.ts`, `apps/api/prisma/seed.ts`, `apps/api/src/prisma/prisma.module.ts`, `prisma.service.ts`, `apps/api/.env` and `.env.example`.
+
+**Prisma 7 notes.** The client is generated as TypeScript into `apps/api/src/generated/prisma` (git-ignored) and imported from `../generated/prisma/client.js`. `migrate dev` no longer regenerates it, so run `npx prisma generate` after every schema change (it also runs on `npm install`). The client needs a driver adapter (`@prisma/adapter-pg`).
 
 ```prisma
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
+// Prisma 7: no connection URL here. The CLI reads DIRECT_URL from prisma.config.ts;
+// the running API passes DATABASE_URL to a driver adapter in prisma.service.ts.
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL") // pooled connection at runtime
-  directUrl = env("DIRECT_URL")   // direct connection for migrations (Neon)
+  provider = "postgresql"
 }
 
 enum RoleName {
@@ -250,9 +253,10 @@ model AuditLog {
 **Endpoints / pages.** None yet.
 
 **Checkpoint.**
-- `npx prisma migrate dev --name init` succeeds.
+- `npx prisma migrate dev --name init` then `npx prisma generate` succeed (run inside `apps/api`).
 - `npx prisma db seed` runs twice without errors or duplicates.
 - `npx prisma studio` shows 8 tables, 3 roles, the categories and one admin with a hashed password.
+- `GET /health` returns `"database": "connected"`.
 - You can explain each row of the relationship table above without looking.
 
 ---

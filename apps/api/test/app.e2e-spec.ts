@@ -21,6 +21,7 @@ describe('AppController (e2e)', () => {
       .get('/health')
       .expect(200);
     expect(response.body.status).toBe('ok');
+    expect(response.body.database).toBe('connected');
   });
 
   afterEach(async () => {

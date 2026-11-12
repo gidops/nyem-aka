@@ -10,3 +10,6 @@ out/
 .DS_Store
 npm-debug.log*
 .vercel
+
+# Prisma client is generated code: rebuilt by `prisma generate`, never committed.
+apps/api/src/generated/
