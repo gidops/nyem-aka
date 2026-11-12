@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Phases 0 to 3 are done: the API is feature-complete except reports.** Built: schema and seed; cookie auth and RBAC; users, categories, requests (state machine, scoping, search/filter/pagination), attachments, audit trail; Swagger at `/docs`. On the web: only the `/api` proxy, fetch helper, route protection, and plain login, register and temporary dashboard pages. **Not built yet:** `/reports/*` and CSV export, the design system and all real pages (Phase 4), CI and browser tests (Phase 5), deployment (Phase 6). Anything below describing those is the plan from `docs/BUILD_PLAN.md`. As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
+**Phases 0 to 4 are done: the product is feature-complete locally.** API: auth, RBAC, users, categories, requests, attachments, audit trail, reports and CSV export, Swagger at `/docs`. Web: design system, landing page, and every page for the three roles, responsive. Tests: API unit and e2e, plus Playwright browser tests. **Not built yet:** CI workflow and collected test evidence (rest of Phase 5), deployment to Neon/Render/Vercel (Phase 6), the technical report. As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
 
 The `CLAUDE.md` in the home directory (`/home/PSL-TECH-DEV-02/CLAUDE.md`) describes a different project (AATC VMS). Its stack, commands and architecture do **not** apply here.
 
@@ -34,13 +34,16 @@ The user is building this as a learning project and wants a senior full-stack en
 - **Database:** PostgreSQL on Neon (local dev uses Postgres in Docker).
 - **Images:** Cloudinary. Render's disk is ephemeral, so uploads must never be written to the API's filesystem.
 
-## Planned layout
+## Layout
 
 ```
-apps/
-  api/    NestJS: prisma/, src/{auth,users,categories,requests,attachments,audit,reports}
-  web/    Next.js: app/(public), app/(app)/{requests,officer,admin}, components/ui, lib/api
-docs/     BUILD_PLAN.md, TECHNICAL_REPORT_OUTLINE.md, screenshots/
+apps/api/      NestJS. prisma/ (schema, migrations, seed), scripts/demo-data.ts, test/ (e2e),
+               src/{auth,users,categories,requests,attachments,audit,reports,common,prisma}
+apps/web/      Next.js. app/page.tsx (landing), app/(auth)/{login,register},
+               app/(app)/{dashboard,requests,officer,admin/*} (signed-in area, shared AppShell),
+               components/ui (design system), components/{requests,admin}, lib/ (data layer),
+               proxy.ts, e2e/ (Playwright), scripts/screenshots.mjs
+docs/          BUILD_PLAN.md, TECHNICAL_REPORT_OUTLINE.md, screenshots/ (generated)
 ```
 
 npm workspaces, one root lockfile. Vercel's root directory is `apps/web`; Render's is `apps/api`.
@@ -60,6 +63,12 @@ npm run test:e2e -w api                       # supertest e2e
 npm run lint -w api                           # oxlint (type-aware)
 npm run lint -w web                           # eslint
 npm run build                                 # build both apps
+npm run typecheck -w web                      # tsc --noEmit
+
+# These three need BOTH apps running (dev or built):
+npm run demo -w api                           # demo users + 9 requests via the real API (idempotent)
+npm run test:e2e -w web                       # Playwright, desktop + phone (needs demo data)
+npm run screenshots -w web                    # every page → docs/screenshots/
 ```
 
 Database commands run inside `apps/api` (the Prisma CLI reads `prisma.config.ts` there):
@@ -80,6 +89,9 @@ npx prisma studio                             # browse the data
 - **Prisma is pinned to 7.10.1** (npm's `latest` tag pointed at an 8.0 release candidate when this was set up). Prisma 7 differs from older tutorials: the schema has no `url`; the CLI gets `DIRECT_URL` from `apps/api/prisma.config.ts`; the runtime client needs a driver adapter and gets `DATABASE_URL` in `src/prisma/prisma.service.ts`; the client is generated into `apps/api/src/generated/prisma` (git-ignored, lint-ignored) and imported as `../generated/prisma/client.js`, not from `@prisma/client`; `migrate dev` does not regenerate the client.
 - **A `pg` DeprecationWarning** ("client.query() when the client is already executing a query") appears during e2e runs. It originates inside Prisma's transaction code, not this repo; ignore it unless a Prisma upgrade is being considered.
 - **Specs that build a provider depending on `PrismaService` must supply a mock** (see `apps/api/src/app.controller.spec.ts`).
+- **Playwright's Chromium cannot start on this machine without help:** it lacks system libraries and there is no passwordless sudo. Working copies of the libraries are in `~/.cache/nyem-aka-browser-libs`; prefix browser commands with `LD_LIBRARY_PATH=$(cat ~/.cache/nyem-aka-browser-libs/ld-path)`. If that folder is missing, the proper fix is `sudo npx playwright install-deps chromium` (the user must run it).
+- **The login route is rate-limited to 5 a minute.** `e2e/global-setup.ts` reuses saved sessions and the demo and screenshot scripts wait and retry on 429. Do not loosen the limit to make scripts pass.
+- **Browser tests leave their requests behind** (titles starting `E2E dripping tap`); there is no delete endpoint. Take report screenshots before running them.
 - **Local Postgres is on port 5433**, because 5432 on this machine is used by another project. Local connection string: `postgresql://nyemaka:nyemaka@localhost:5433/nyemaka`.
 
 ## Architecture decisions that span files
@@ -99,6 +111,15 @@ npx prisma studio                             # browse the data
 - **List endpoints** extend `PaginationQueryDto` and return `paginated(...)` from `src/common/pagination.ts`: `{ data, meta: { total, page, limit, totalPages } }`.
 - **Users are deactivated, not deleted** (`isActive`), so history keeps its foreign keys.
 - **Two database URLs:** `DATABASE_URL` (runtime; Neon's pooled string in production) and `DIRECT_URL` (Prisma CLI; Neon's direct string). Locally both point at the Docker database.
+
+## Web architecture
+
+- **Data layer:** `lib/api.ts` is the only `fetch` caller (`api`, `apiDownload`, `toQuery`). Reads are TanStack Query hooks in `lib/queries.ts` with keys in one `keys` object; writes are hooks in `lib/mutations.ts` that invalidate `keys.requests` / `summary` / `audit` on settle. Types in `lib/types.ts` are hand-written mirrors of the API; labels and formatting in `lib/format.ts`.
+- **Signed-in area:** `app/(app)/layout.tsx` wraps pages in `AppShell` (loads `/auth/me`, header, role-based nav, mobile menu) inside `Suspense` (required: `cacheComponents` is on and pages read the URL client-side). Pages get the user with `useUser()` and restrict themselves with `<RoleGate allow={[…]}>`; `/admin/*` is gated once in its layout. These are UX only; the API enforces.
+- **Filters, tabs and page number live in the URL** via `lib/use-url-state.ts`; do not add React state for them.
+- **Forms** use native browser validation mirroring the API's limits and display the API's error message via `FormError`. There is no form or schema library.
+- **Request detail** (`app/(app)/requests/[id]`) is shared by all roles; `components/requests/request-actions.tsx` decides which buttons appear from role + status, mirroring the API state machine. If the API rules change, update both.
+- **Every list has loading, empty and error states** (`components/ui/states.tsx`), and `DataTable` renders a table from `md` up and stacked cards below.
 
 ## Design direction
 

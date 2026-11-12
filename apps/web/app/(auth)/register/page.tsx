@@ -1,13 +1,18 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Field, FormError, SubmitButton } from "@/components/auth-form";
+import { Button } from "@/components/ui/button";
+import { FormError, Input } from "@/components/ui/field";
+import { errorText } from "@/lib/api";
 import { register } from "@/lib/auth";
+import { keys } from "@/lib/queries";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -18,41 +23,49 @@ export default function RegisterPage() {
     setError(null);
     setPending(true);
     try {
-      await register({
+      const { user } = await register({
         fullName: String(form.get("fullName")),
         email: String(form.get("email")),
         password: String(form.get("password")),
         ...(department && { department }),
       });
+      queryClient.clear();
+      queryClient.setQueryData(keys.me, user);
       router.replace("/dashboard");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Something went wrong");
+      setError(errorText(cause));
       setPending(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Create your account</h1>
-      <p className="text-sm text-neutral-600">
-        For students and staff. Maintenance officers are added by an administrator.
-      </p>
+    <form onSubmit={onSubmit} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <h1 className="font-display text-2xl font-semibold">Create your account</h1>
+        <p className="text-sm text-muted">
+          For students and staff. Maintenance officers are added by an administrator.
+        </p>
+      </div>
       <FormError message={error} />
-      <Field label="Full name" name="fullName" autoComplete="name" required minLength={2} />
-      <Field label="Email" name="email" type="email" autoComplete="email" required />
-      <Field label="Department (optional)" name="department" />
-      <Field
-        label="Password (at least 8 characters)"
+      <Input label="Full name" name="fullName" autoComplete="name" required minLength={2} maxLength={100} />
+      <Input label="Email" name="email" type="email" autoComplete="email" required />
+      <Input label="Department (optional)" name="department" maxLength={100} />
+      <Input
+        label="Password"
+        hint="At least 8 characters."
         name="password"
         type="password"
         autoComplete="new-password"
         required
         minLength={8}
+        maxLength={128}
       />
-      <SubmitButton pending={pending}>Create account</SubmitButton>
-      <p className="text-sm text-neutral-600">
+      <Button type="submit" pending={pending}>
+        Create account
+      </Button>
+      <p className="text-sm text-muted">
         Already registered?{" "}
-        <Link href="/login" className="font-medium text-neutral-900 underline">
+        <Link href="/login" className="font-medium text-accent-strong underline">
           Sign in
         </Link>
       </p>

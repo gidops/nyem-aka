@@ -1,10 +1,14 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Field, FormError, SubmitButton } from "@/components/auth-form";
+import { Button } from "@/components/ui/button";
+import { FormError, Input } from "@/components/ui/field";
+import { errorText } from "@/lib/api";
 import { login } from "@/lib/auth";
+import { keys } from "@/lib/queries";
 
 // Only allow redirects to paths on this site, never to another website.
 function safeNextPath(): string {
@@ -14,6 +18,7 @@ function safeNextPath(): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -23,28 +28,32 @@ export default function LoginPage() {
     setError(null);
     setPending(true);
     try {
-      await login({
+      const { user } = await login({
         email: String(form.get("email")),
         password: String(form.get("password")),
       });
-      // The browser stored the cookies from the response, so this navigation is signed in.
+      // Start from an empty cache, then store the user we just received.
+      queryClient.clear();
+      queryClient.setQueryData(keys.me, user);
       router.replace(safeNextPath());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Something went wrong");
+      setError(errorText(cause));
       setPending(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Sign in to Nyem Aka</h1>
+    <form onSubmit={onSubmit} className="flex flex-col gap-5">
+      <h1 className="font-display text-2xl font-semibold">Sign in</h1>
       <FormError message={error} />
-      <Field label="Email" name="email" type="email" autoComplete="email" required />
-      <Field label="Password" name="password" type="password" autoComplete="current-password" required />
-      <SubmitButton pending={pending}>Sign in</SubmitButton>
-      <p className="text-sm text-neutral-600">
+      <Input label="Email" name="email" type="email" autoComplete="email" required />
+      <Input label="Password" name="password" type="password" autoComplete="current-password" required />
+      <Button type="submit" pending={pending}>
+        Sign in
+      </Button>
+      <p className="text-sm text-muted">
         New here?{" "}
-        <Link href="/register" className="font-medium text-neutral-900 underline">
+        <Link href="/register" className="font-medium text-accent-strong underline">
           Create an account
         </Link>
       </p>

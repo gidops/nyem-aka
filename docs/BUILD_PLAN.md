@@ -434,31 +434,32 @@ Tokens in `app/globals.css` (Tailwind `@theme`). Starting values; adjust to tast
 | `accent` | `#B5482A` | Terracotta: primary buttons, links, active tab |
 | `accent-soft` | `#F6E7E0` | Hero band, selected rows |
 
-Style rules: cards are flat with a 1px border and no shadow; buttons are pills (`rounded-full`); the hero is a full-width band; whitespace is generous. The typeface is an open-source one loaded with `next/font` (for example DM Sans). No Oracle logos, fonts or assets.
+Style rules: cards are flat with a 1px border and no shadow; buttons are pills (`rounded-full`); the hero is a full-width band; whitespace is generous. Typefaces are open-source, loaded with `next/font`: DM Sans for text and Source Serif 4 for headings. No Oracle logos, fonts or assets. Muted status colours (success, warning, danger, info) exist for badges; terracotta remains the only accent.
 
-Components in `components/ui/`: `Button`, `Card`, `Input`, `Select`, `Textarea`, `Tabs`, `Badge`, `StatusBadge`, `PriorityBadge`, `DataTable`, `Pagination`, `Modal`, `Toast`, `EmptyState`, `Hero`, `AppShell`, `FileDropzone`, `Timeline`.
+Components in `components/ui/`: `Button`/`ButtonLink`, `Card`, `Input`/`Select`/`Textarea`/`FormError` (`field.tsx`), `Tabs`, `Badge`/`StatusBadge`/`PriorityBadge`, `DataTable`, `Pagination`, `Modal` (native `<dialog>`), `Toast`, `Loading`/`EmptyState`/`ErrorState` (`states.tsx`), `Hero`/`PageBody`, `FileDropzone`, `Timeline`. App-level: `components/app-shell.tsx` (`AppShell`, `useUser`, `RoleGate`), `components/requests/*`, `components/admin/bar-list.tsx`.
 
 Mobile rules: write styles mobile-first; `DataTable` renders stacked cards below `md`; `AppShell` navigation becomes a drawer; tabs scroll horizontally; tap targets are at least 44px.
 
 ### 4b. Pages
 
-Server state uses TanStack Query (caching, loading states, refetch after mutations). Filters live in the URL query string, so a filtered view can be bookmarked and survives refresh. Forms use react-hook-form with zod.
+Server state uses TanStack Query (caching, loading states, refetch after mutations): reads are hooks in `lib/queries.ts`, changes are hooks in `lib/mutations.ts`. Filters live in the URL query string (`lib/use-url-state.ts`), so a filtered view can be bookmarked and survives refresh. Forms use the browser's built-in validation (`required`, `minLength`, …) mirroring the API's rules, and show the API's own message when it rejects something. That is a deliberate simplification from the original plan (react-hook-form + zod): the forms are small, and one source of validation truth (the API) is easier to keep correct than two.
 
 | Path | Role | Content |
 | --- | --- | --- |
 | `/` | Public | Hero band, how it works, sign-in call to action |
 | `/login`, `/register` | Public | Restyled forms |
-| `/requests` | REQUESTER | Tabs: Open / Completed / All; search; list |
+| `/requests` | REQUESTER | Tabs: Open / Closed / All; search; list |
 | `/requests/new` | REQUESTER | Form with category, priority, location, image dropzone with previews |
 | `/requests/[id]` | All (scoped) | Details, image gallery, timeline; actions depend on role and status |
-| `/officer` | OFFICER | Tabs: Assigned / In progress / Completed; counts |
+| `/officer` | OFFICER | Tabs: To start / In progress / Completed; counts |
+| `/dashboard` | All | Forwards each role to its home page |
 | `/admin` | ADMIN | Stat cards (by status, by category, average completion time), recent activity |
 | `/admin/requests` | ADMIN | Full table with all filters, assign modal, **Export CSV** |
 | `/admin/users` | ADMIN | Table, create user, change role, activate / deactivate |
 | `/admin/categories` | ADMIN | CRUD |
 | `/admin/audit` | ADMIN | Filterable audit trail |
 
-After login, redirect by role (`/requests`, `/officer`, `/admin`). `middleware.ts` blocks signed-out users; the layout for each area checks the role from `/auth/me` and shows a 403 page otherwise. The API remains the real enforcement; UI checks are for usability only.
+After login, redirect by role (`/requests`, `/officer`, `/admin`). `proxy.ts` sends signed-out visitors to `/login`; inside the app, `RoleGate` checks the role from `/auth/me` and shows a "no access" page otherwise. The API remains the real enforcement; UI checks are for usability only.
 
 **New endpoints (API `src/reports/`).**
 
@@ -469,6 +470,15 @@ After login, redirect by role (`/requests`, `/officer`, `/admin`). `middleware.t
 
 CSV notes: set `Content-Type: text/csv` and `Content-Disposition: attachment`; quote fields; prefix cells starting with `=`, `+`, `-` or `@` with `'` so a spreadsheet does not execute them as formulas; write an `AuditLog` row for each export.
 
+**Demo data and screenshots.** With both apps running:
+
+```bash
+npm run demo -w api          # 4 demo users and 9 requests in every status, via the real API
+npm run screenshots -w web   # every page at desktop and phone size → docs/screenshots/
+```
+
+Demo accounts (`ada@`, `tunde@`, `chidi@`, `ngozi@nyemaka.local`) share the password printed by the demo script. For clean report screenshots, take them before running the browser tests, which add their own requests.
+
 **Checkpoint.**
 - Complete the Phase 3 script entirely in the browser with three accounts.
 - At 375px width (DevTools device mode) every page is usable with no horizontal scrolling.
@@ -476,6 +486,7 @@ CSV notes: set `Content-Type: text/csv` and `Content-Disposition: attachment`; q
 - The exported CSV opens in Excel or Sheets and matches the filtered table.
 - A requester typing `/admin` in the address bar is refused.
 - Lighthouse accessibility score is 90 or above on the main pages.
+- `npm run test:e2e -w web` passes (it automates the first five items at desktop and phone size).
 
 ---
 
@@ -493,7 +504,7 @@ CSV notes: set `Content-Type: text/csv` and `Content-Disposition: attachment`; q
 | --- | --- | --- | --- |
 | Unit | Vitest | `request-status.machine.spec.ts`, `auth.service.spec.ts`, `requests.service.spec.ts`, `csv.spec.ts` | Every allowed and forbidden transition; password hashing and token rotation; scoping by role; CSV escaping |
 | API e2e | Vitest + supertest | `test/auth.e2e-spec.ts`, `test/rbac.e2e-spec.ts`, `test/request-lifecycle.e2e-spec.ts` | Cookies set and cleared; 401 / 403 / 404 matrix per role; the full Phase 3 script |
-| Browser | Playwright | `apps/web/e2e/happy-path.spec.ts` | Requester submits → admin assigns → officer completes, including a mobile viewport |
+| Browser | Playwright | `apps/web/e2e/happy-path.spec.ts`, `global-setup.ts`, `playwright.config.ts` (written in Phase 4) | Requester submits → admin assigns → officer completes; role gates; URL filters; CSV download. Runs at desktop and phone size |
 | CI | GitHub Actions | `.github/workflows/ci.yml` | Lint, typecheck, unit and e2e against a Postgres service container |
 
 e2e tests run against a separate database (`DATABASE_URL` from `.env.test`), reset before each run, with Cloudinary mocked.

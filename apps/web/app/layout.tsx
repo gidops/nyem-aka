@@ -1,29 +1,30 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { DM_Sans, Source_Serif_4 } from "next/font/google";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Open-source typefaces, downloaded at build time and served from our own domain.
+const body = DM_Sans({ variable: "--font-body", subsets: ["latin"] });
+const heading = Source_Serif_4({ variable: "--font-heading", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Nyem Aka",
-  description: "University maintenance and service requests",
+  title: { default: "Nyem Aka", template: "%s · Nyem Aka" },
+  description:
+    "Report a maintenance fault on campus and follow it until it is fixed.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#faf7f2",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${body.variable} ${heading.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
