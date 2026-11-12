@@ -1,0 +1,63 @@
+# Render "Blueprint": describes the API service so it can be created in one step
+# (Render dashboard → New → Blueprint → pick this repository) and recreated identically.
+#
+# Values marked `sync: false` are secrets. Render asks for them when the blueprint
+# is first applied; they are never stored in this file.
+services:
+  - type: web
+    name: nyem-aka-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    # Commands run from the repository root, because the lockfile lives there
+    # (npm workspaces).
+    #
+    # --workspace api   installs only the API's dependencies, not the web app's.
+    # --include=dev     NODE_ENV=production would otherwise skip dev dependencies,
+    #                   and the build needs them (Nest CLI, TypeScript, Prisma CLI).
+    buildCommand: npm ci --workspace api --include=dev && npm run build --workspace api
+    # On every start: apply any new migrations, make sure the roles, categories and
+    # first admin exist (the seed is safe to repeat and never resets a password),
+    # then run the server.
+    startCommand: cd apps/api && npx prisma migrate deploy && npx prisma db seed && node dist/main.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24"
+      # Neon: the POOLED connection string (host contains "-pooler").
+      - key: DATABASE_URL
+        sync: false
+      # Neon: the DIRECT connection string (used only for migrations and the seed).
+      - key: DIRECT_URL
+        sync: false
+      # Render generates long random values for these.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL_SECONDS
+        value: "900"
+      - key: JWT_REFRESH_TTL_SECONDS
+        value: "604800"
+      # The first administrator. Choose a strong password; change it after first sign-in
+      # is not yet possible in the app, so treat this value as the admin's password.
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_ADMIN_NAME
+        value: System Administrator
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Proxies in front of the API (Vercel, then Render's own). Verify after deploying:
+      # see docs/DEPLOYMENT.md, "Check the client address".
+      - key: TRUST_PROXY_HOPS
+        value: "2"

@@ -524,29 +524,30 @@ API e2e tests run against a separate database, `nyemaka_test` (settings in `apps
 
 **Why last.** You deploy something known to work, so any problem that appears is a configuration problem and not a code problem.
 
-**Order and why.** Database first (the API needs it), API second (the web app needs its URL), web last.
+**Order and why.** GitHub first (Render and Vercel deploy from it), then the database (the API needs it), Cloudinary (the API refuses to start in production without it), the API (the web app needs its address), and the web app last.
 
-1. **Neon.** Create the project. Copy the pooled string to `DATABASE_URL` and the direct string to `DIRECT_URL`.
-2. **Cloudinary.** Create the account and copy the three credentials. This is the first time the Cloudinary code runs for real (development uses local disk), so test an upload and a delete straight after deploying.
-3. **Render (API).** New Web Service from the repository, root directory `apps/api`.
-   - Build: `npm ci && npx prisma generate && npm run build`
-   - Start: `npx prisma migrate deploy && node dist/main.js`
-   - Env: `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL_SECONDS`, `JWT_REFRESH_TTL_SECONDS`, `CLOUDINARY_*`, `WEB_ORIGIN`, `NODE_ENV=production`
-   - Health check path: `/health`
-   - Run the seed once with production admin credentials, then change that password.
-   - Set `TRUST_PROXY_HOPS` so `req.ip` is the real visitor (expected: 2, for Vercel then Render). Verify by signing in from two networks and checking the `ip` column in `AuditLog`; if every row shows the same address, the login rate limit is being shared by all users.
-4. **Vercel (web).** Import the repository, root directory `apps/web`, env `API_URL=https://<your-api>.onrender.com` (used by the rewrite).
-5. **Smoke test in production,** then record the URLs in the README.
+**The full step-by-step guide is [`DEPLOYMENT.md`](./DEPLOYMENT.md).** In brief:
 
-**Create.** `render.yaml` (optional, makes the Render setup reproducible), `apps/api/.env.example`, `apps/web/.env.example`, `README.md` with setup steps and live URLs.
+1. **GitHub.** Push the repository; CI runs for the first time.
+2. **Neon.** Create the project; copy the pooled string (`DATABASE_URL`) and the direct string (`DIRECT_URL`).
+3. **Cloudinary.** Copy the cloud name, API key and API secret.
+4. **Render.** New → Blueprint; it reads `render.yaml`. Supply the secrets it asks for. On every start the service applies migrations, runs the (repeatable) seed and starts the server.
+5. **Vercel.** Import the repository, root directory `apps/web`, set `API_URL` to the Render address.
+6. **Smoke test in production,** then record the addresses in `README.md`.
+
+**Created.** `render.yaml`, `README.md`, `docs/DEPLOYMENT.md`; `.env.example` files exist from earlier phases.
+
+**Verified locally before deploying.** In a clean copy of the repository with `NODE_ENV=production` and no `.env`: the Render build command succeeds; the start command migrates, seeds and serves; the API refuses to boot without Cloudinary settings; cookies carry `Secure`; with two proxy hops the audit log records the visitor's address.
 
 **Known limits to state in the report.** Render's free tier sleeps after inactivity, so the first request can take up to a minute; Neon's free compute also suspends when idle.
 
 **Checkpoint.**
+- CI is green on GitHub.
 - `https://<api>.onrender.com/health` and `/docs` respond.
 - On the Vercel URL: register, log in, submit a request with an image, assign and complete it using three accounts.
 - The cookies are `HttpOnly` and `Secure`, and belong to the Vercel domain.
 - The uploaded image is still there after redeploying the API.
+- The audit trail shows different IP addresses for sign-ins from different networks.
 - The whole flow works on a real phone.
 
 ---

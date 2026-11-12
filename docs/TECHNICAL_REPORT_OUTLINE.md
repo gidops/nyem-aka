@@ -80,6 +80,8 @@ Most of this section is already drafted in [`TESTING.md`](./TESTING.md), with ra
 
 ## 11. Deployment
 
+The steps, the architecture diagram and the free-tier limits are written up in [`DEPLOYMENT.md`](./DEPLOYMENT.md).
+
 - Environments and services: Vercel, Render, Neon, Cloudinary, with reasons.
 - Deployment steps and the environment variables used (names only, never the values).
 - Production migration approach (`prisma migrate deploy`).

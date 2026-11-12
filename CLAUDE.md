@@ -43,7 +43,8 @@ apps/web/      Next.js. app/page.tsx (landing), app/(auth)/{login,register},
                app/(app)/{dashboard,requests,officer,admin/*} (signed-in area, shared AppShell),
                components/ui (design system), components/{requests,admin}, lib/ (data layer),
                proxy.ts, e2e/ (Playwright), scripts/screenshots.mjs
-docs/          BUILD_PLAN.md, TESTING.md, TECHNICAL_REPORT_OUTLINE.md, testing/ (test output), screenshots/ (generated)
+render.yaml    Render blueprint for the API (build/start commands, env vars)
+docs/          BUILD_PLAN.md, TESTING.md, DEPLOYMENT.md, TECHNICAL_REPORT_OUTLINE.md, testing/ (test output), screenshots/ (generated)
 .github/       workflows/ci.yml (api, web, browser jobs)
 ```
 
@@ -116,6 +117,13 @@ npx prisma studio                             # browse the data
 - **List endpoints** extend `PaginationQueryDto` and return `paginated(...)` from `src/common/pagination.ts`: `{ data, meta: { total, page, limit, totalPages } }`.
 - **Users are deactivated, not deleted** (`isActive`), so history keeps its foreign keys.
 - **Two database URLs:** `DATABASE_URL` (runtime; Neon's pooled string in production) and `DIRECT_URL` (Prisma CLI; Neon's direct string). Locally both point at the Docker database.
+
+## Deployment facts
+
+- **Render** builds from the repo root (`npm ci --workspace api --include=dev`, because `NODE_ENV=production` would skip the dev dependencies the build needs) and starts with `prisma migrate deploy && prisma db seed && node dist/main.js` in `apps/api`. The seed must stay idempotent and must never overwrite the admin password, because it runs on every start.
+- **Vercel** uses root directory `apps/web`; `API_URL` is baked into the rewrite at build time, so changing it needs a redeploy.
+- **Production-only behaviour:** `Secure` cookies; boot fails without `CLOUDINARY_*`; rate limiting is on unless `NODE_ENV=test`.
+- Step-by-step guide and post-deploy checks: `docs/DEPLOYMENT.md`.
 
 ## Web architecture
 
