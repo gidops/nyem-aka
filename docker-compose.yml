@@ -1,0 +1,24 @@
+# Local development database only. Production uses Neon.
+name: nyem-aka
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nyemaka
+      POSTGRES_PASSWORD: nyemaka
+      POSTGRES_DB: nyemaka
+    ports:
+      # Host port 5433 because 5432 is already used by another project on this machine.
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nyemaka -d nyemaka"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

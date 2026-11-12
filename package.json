@@ -1,0 +1,21 @@
+{
+  "name": "nyem-aka",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nyem Aka: University Maintenance & Service Request System",
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:api": "npm run start:dev -w api",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test -w api",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down"
+  }
+}
