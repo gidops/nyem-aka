@@ -87,9 +87,6 @@ jobs:
       JWT_REFRESH_TTL_SECONDS: 604800
       SEED_ADMIN_EMAIL: admin@nyemaka.local
       SEED_ADMIN_PASSWORD: ci-only-admin-password
-      # "test" switches off the login rate limit, which the scripted sign-ins would hit.
-      NODE_ENV: test
-      PORT: 4000
       API_URL: http://localhost:4000
     steps:
       - uses: actions/checkout@v4
@@ -107,8 +104,11 @@ jobs:
       - run: npm run build
       - name: Start the API and the web app
         run: |
-          (cd apps/api && node dist/main.js > ../../api.log 2>&1 &)
-          (cd apps/web && npx next start > ../../web.log 2>&1 &)
+          # NODE_ENV=test (API only) switches off the login rate limit, which the
+          # scripted sign-ins would hit. Ports are set per process: a shared PORT
+          # variable would make both servers try to listen on the same one.
+          (cd apps/api && NODE_ENV=test PORT=4000 node dist/main.js > ../../api.log 2>&1 &)
+          (cd apps/web && PORT=3000 npx next start > ../../web.log 2>&1 &)
           curl --silent --fail --retry 30 --retry-delay 1 --retry-connrefused http://localhost:4000/health
           curl --silent --fail --retry 30 --retry-delay 1 --retry-connrefused --output /dev/null http://localhost:3000/
       - name: Load demo data
