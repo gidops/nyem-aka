@@ -124,6 +124,7 @@ npx prisma studio                             # browse the data
 - **Vercel** uses root directory `apps/web`; `API_URL` is baked into the rewrite at build time, so changing it needs a redeploy.
 - **Production-only behaviour:** `Secure` cookies; boot fails without `CLOUDINARY_*`; rate limiting is on unless `NODE_ENV=test`.
 - Step-by-step guide and post-deploy checks: `docs/DEPLOYMENT.md`.
+- **Neon is linked** (project `tiny-king-73592464`, Frankfurt, Postgres 18; local Docker and CI use 16). `neon init` put the strings in the repo-root `.env.local` (git-ignored, NOT read by the app): `DATABASE_URL` is the pooled string, `DATABASE_URL_UNPOOLED` is the direct one and maps to the app's `DIRECT_URL`. Local development deliberately stays on the Docker database; do not copy the Neon strings into `apps/api/.env` unless the user asks. Never print them.
 
 ## Web architecture
 
