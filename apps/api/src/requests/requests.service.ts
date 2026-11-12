@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import { dateRange } from '../common/date-range.js';
 import { type Paginated, paginated } from '../common/pagination.js';
 import { Prisma, RequestStatus } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -30,8 +31,11 @@ import {
   toRequestListItem,
 } from './request.select.js';
 
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+// Named sets of statuses, so a list can ask for "everything still open" in one query.
+const STATUS_GROUPS = {
+  open: [RequestStatus.PENDING, RequestStatus.ASSIGNED, RequestStatus.IN_PROGRESS],
+  closed: [RequestStatus.COMPLETED, RequestStatus.REJECTED, RequestStatus.CANCELLED],
+} as const;
 
 interface TransitionInput {
   requestId: string;
@@ -87,9 +91,7 @@ export class RequestsService {
   ): Promise<Paginated<RequestListItem>> {
     // AND-ing keeps the visibility scope separate from the user's filters, so no
     // filter can ever widen what the caller is allowed to see.
-    const where: Prisma.ServiceRequestWhereInput = {
-      AND: [this.scope(actor), this.filters(query)],
-    };
+    const where = this.buildWhere(query, actor);
 
     const orderBy: Prisma.ServiceRequestOrderByWithRelationInput[] =
       query.sort === 'oldest'
@@ -112,25 +114,25 @@ export class RequestsService {
     return paginated(rows.map(toRequestListItem), total, query);
   }
 
+  // Visibility scope AND the caller's filters. Shared with the CSV export so the
+  // file always contains exactly what the filtered table shows.
+  buildWhere(
+    query: QueryRequestsDto,
+    actor: AuthUser,
+  ): Prisma.ServiceRequestWhereInput {
+    return { AND: [this.scope(actor), this.filters(query)] };
+  }
+
   private filters(query: QueryRequestsDto): Prisma.ServiceRequestWhereInput {
     const where: Prisma.ServiceRequestWhereInput = {
       ...(query.status && { status: query.status }),
+      ...(query.group && { status: { in: [...STATUS_GROUPS[query.group]] } }),
       ...(query.priority && { priority: query.priority }),
       ...(query.categoryId && { categoryId: query.categoryId }),
     };
 
-    if (query.from || query.to) {
-      where.createdAt = {
-        ...(query.from && { gte: new Date(query.from) }),
-        // "to=2026-11-30" should include everything created on the 30th,
-        // so a bare date means "before the start of the next day".
-        ...(query.to && {
-          [DATE_ONLY.test(query.to) ? 'lt' : 'lte']: DATE_ONLY.test(query.to)
-            ? new Date(new Date(query.to).getTime() + ONE_DAY_MS)
-            : new Date(query.to),
-        }),
-      };
-    }
+    const createdAt = dateRange(query.from, query.to);
+    if (createdAt) where.createdAt = createdAt;
 
     if (query.q) {
       const text: Prisma.ServiceRequestWhereInput[] = [

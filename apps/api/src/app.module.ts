@@ -7,6 +7,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { ReportsModule } from './reports/reports.module.js';
 import { RequestsModule } from './requests/requests.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -27,6 +28,7 @@ import { UsersModule } from './users/users.module.js';
     CategoriesModule,
     RequestsModule,
     AttachmentsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [],

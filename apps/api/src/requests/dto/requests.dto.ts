@@ -50,6 +50,9 @@ export class CreateRequestDto {
 
 export class UpdateRequestDto extends PartialType(CreateRequestDto) {}
 
+export const REQUEST_GROUPS = ['open', 'closed'] as const;
+export type RequestGroup = (typeof REQUEST_GROUPS)[number];
+
 export const REQUEST_SORTS = ['newest', 'oldest', 'priority'] as const;
 export type RequestSort = (typeof REQUEST_SORTS)[number];
 
@@ -67,6 +70,14 @@ export class QueryRequestsDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(RequestStatus)
   status?: RequestStatus;
+
+  @ApiPropertyOptional({
+    enum: REQUEST_GROUPS,
+    description: 'open = pending, assigned or in progress; closed = completed, rejected or cancelled',
+  })
+  @IsOptional()
+  @IsIn(REQUEST_GROUPS)
+  group?: RequestGroup;
 
   @ApiPropertyOptional({ enum: Priority })
   @IsOptional()

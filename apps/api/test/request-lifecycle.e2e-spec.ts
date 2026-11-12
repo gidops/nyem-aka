@@ -490,6 +490,63 @@ describe('Request lifecycle (e2e)', () => {
     });
   });
 
+  describe('reports', () => {
+    it('summary counts by status and is admin-only', async () => {
+      const summary = await http()
+        .get('/reports/summary')
+        .set('Cookie', actors.admin.cookie)
+        .expect(200);
+      const byStatus = summary.body.byStatus as Record<string, number>;
+      expect(Object.keys(byStatus).sort()).toEqual(
+        ['ASSIGNED', 'CANCELLED', 'COMPLETED', 'IN_PROGRESS', 'PENDING', 'REJECTED'],
+      );
+      expect(summary.body.total).toBe(
+        Object.values(byStatus).reduce((sum, count) => sum + count, 0),
+      );
+      expect(summary.body.open).toBe(byStatus.PENDING + byStatus.ASSIGNED + byStatus.IN_PROGRESS);
+      expect(typeof summary.body.averageCompletionHours).toBe('number');
+
+      await http().get('/reports/summary').set('Cookie', actors.officer.cookie).expect(403);
+      await http().get('/reports/requests.csv').set('Cookie', actors.requester.cookie).expect(403);
+    });
+
+    it('the open/closed group filter matches the individual statuses', async () => {
+      const count = async (query: string) =>
+        (await http().get(`/requests?limit=1&${query}`).set('Cookie', actors.requester.cookie).expect(200))
+          .body.meta.total as number;
+      expect(await count('group=open')).toBe(
+        (await count('status=PENDING')) + (await count('status=ASSIGNED')) + (await count('status=IN_PROGRESS')),
+      );
+      expect((await count('group=open')) + (await count('group=closed'))).toBe(await count(''));
+    });
+
+    it('CSV export matches the filter, escapes dangerous cells and is audited', async () => {
+      const marker = `csvmark${Date.now()}`;
+      await submit({ title: `=HYPERLINK("http://evil") ${marker}`, location: 'Block A, Room 2' });
+      await submit({ title: `Ordinary request ${marker}` });
+
+      const response = await http()
+        .get(`/reports/requests.csv?q=${marker}`)
+        .set('Cookie', actors.admin.cookie)
+        .expect(200);
+      expect(response.headers['content-type']).toMatch(/text\/csv/);
+      expect(response.headers['content-disposition']).toMatch(/attachment; filename="nyem-aka-requests-/);
+
+      const lines = response.text.replace(/^\uFEFF/, '').trim().split('\r\n');
+      expect(lines).toHaveLength(3); // header + the two matching requests
+      expect(lines[0].startsWith('Reference,Title,Category')).toBe(true);
+      // The formula is defused with a leading apostrophe, and the comma is quoted.
+      expect(response.text).toContain(`"'=HYPERLINK(""http://evil"") ${marker}"`);
+      expect(response.text).toContain('"Block A, Room 2"');
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'report.exported', actorId: actors.admin.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit?.metadata).toMatchObject({ rows: 2, filters: { q: marker } });
+    });
+  });
+
   describe('two people acting at once', () => {
     it('only one of two simultaneous status changes wins; the other gets 409 or 400', async () => {
       const fresh = await submit({ title: 'Tap handle snapped off' });
