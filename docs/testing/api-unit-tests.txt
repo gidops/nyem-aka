@@ -1,0 +1,29 @@
+
+ RUN  v4.1.12 <repo>/apps/api
+
+ ✓ src/attachments/image-type.spec.ts > detectImageType > recognises JPEG, PNG and WebP by their first bytes 3ms
+ ✓ src/attachments/image-type.spec.ts > detectImageType > rejects anything else, whatever it claims to be 0ms
+ ✓ src/reports/csv.spec.ts > csv > leaves simple values alone 2ms
+ ✓ src/reports/csv.spec.ts > csv > quotes values containing commas, quotes or line breaks 0ms
+ ✓ src/reports/csv.spec.ts > csv > neutralises cells a spreadsheet would run as a formula 0ms
+ ✓ src/reports/csv.spec.ts > csv > builds a file with a BOM, a header row and CRLF line endings 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > allows PENDING → ASSIGNED for ADMIN 1ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > allows PENDING → REJECTED for ADMIN 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > allows PENDING → CANCELLED for REQUESTER 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > allows ASSIGNED → ASSIGNED for ADMIN 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > allows ASSIGNED → IN_PROGRESS for OFFICER 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > allows IN_PROGRESS → COMPLETED for OFFICER 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > allows COMPLETED → IN_PROGRESS for ADMIN 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > refuses every combination that is not explicitly allowed 1ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > distinguishes an impossible move from a move the role may not make 1ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > requires a note for rejecting and reopening only 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > treats REJECTED and CANCELLED as final 0ms
+ ✓ src/requests/request-status.machine.spec.ts > request status machine > knows which statuses are closed 0ms
+ ✓ src/app.controller.spec.ts > AppController > health > reports ok when the database answers 49ms
+ ✓ src/app.controller.spec.ts > AppController > health > throws 503 when the database is unreachable 2ms
+
+ Test Files  4 passed (4)
+      Tests  20 passed (20)
+   Start at  16:51:42
+   Duration  445ms (transform 165ms, setup 0ms, import 473ms, tests 67ms, environment 0ms)
+

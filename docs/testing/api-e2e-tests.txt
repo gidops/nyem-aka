@@ -1,0 +1,53 @@
+
+ RUN  v4.1.12 <repo>/apps/api
+
+
+
+ ✓ test/app.e2e-spec.ts > Health (e2e) > GET /health is public and reports the database 57ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > login > sets two httpOnly cookies and returns no token or hash in the body 218ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > login > rejects a wrong password and an unknown email with the same message 95ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > login > accepts the email in any letter case 86ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > register > creates a REQUESTER and signs them in 91ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > register > rejects an attempt to choose a role 4ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > register > rejects a duplicate email with 409 159ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > register > rejects a short password 3ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > access control > GET /auth/me returns the user without secrets 79ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > access control > a signed-out caller gets 401 5ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > access control > a tampered token gets 401 2ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > access control > a requester gets 403 on admin routes; an admin gets 200 231ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 1. a requester submits a request and attaches two images 108ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 2. another requester cannot see it (404, not 403) 30ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 3. an admin assigns it to an officer 56ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > user management > an admin creates an officer, who can then sign in 206ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 4. only the assigned officer can progress and complete it 59ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 5. skipping steps is refused with 400 22ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 6. the timeline shows four entries in order, with names and notes 8ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 7. reassigning keeps history: the old assignment is closed, a new one opened 128ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > user management > a deactivated user cannot sign in or refresh 322ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 8. search, filters and pagination return the right rows and meta 126ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > the full script > 9. the audit trail lists every step, and only admins can read it 14ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > other lifecycle rules > a requester can edit and cancel only while pending 121ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > user management > changing a role ends the session and applies on the next sign-in 278ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > other lifecycle rules > rejecting and reopening need a note; an admin can reopen a completed request 159ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > other lifecycle rules > only requesters submit; only admins assign; the assignee must be an active officer 41ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > other lifecycle rules > validates a new request 11ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > user management > an admin edits a user, reactivates one, and filters the list 233ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > attachments > rejects non-images, missing files, oversized files and strangers 60ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > attachments > enforces five images per person, lets the uploader delete, and removes the file 179ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > categories > admins manage categories; in-use ones cannot be deleted; inactive ones are hidden 65ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > categories: rename and delete > renames a category, refuses a duplicate name, and deletes an unused one 54ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > user management > an admin cannot deactivate or demote themselves 64ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > refresh and logout > refresh rotates the token: the old one stops working 76ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > reports > summary counts by status and is admin-only 8ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > reports > the open/closed group filter matches the individual statuses 75ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > reports > CSV export matches the filter, escapes dangerous cells and is audited 50ms
+ ✓ test/request-lifecycle.e2e-spec.ts > Request lifecycle (e2e) > two people acting at once > only one of two simultaneous status changes wins; the other gets 409 or 400 71ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > refresh and logout > after logout the refresh token is dead and cookies are cleared 87ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > refresh and logout > logout without any cookie still succeeds 2ms
+ ✓ test/auth.e2e-spec.ts > Auth and RBAC (e2e) > audit trail > records login, failed login, logout and user creation 266ms
+
+ Test Files  3 passed (3)
+      Tests  42 passed (42)
+   Start at  16:51:43
+   Duration  5.73s (transform 743ms, setup 0ms, import 3.10s, tests 5.40s, environment 0ms)
+

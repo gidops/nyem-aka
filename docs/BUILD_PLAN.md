@@ -502,18 +502,19 @@ Demo accounts (`ada@`, `tunde@`, `chidi@`, `ngozi@nyemaka.local`) share the pass
 
 | Layer | Tool | Files | Covers |
 | --- | --- | --- | --- |
-| Unit | Vitest | `request-status.machine.spec.ts`, `auth.service.spec.ts`, `requests.service.spec.ts`, `csv.spec.ts` | Every allowed and forbidden transition; password hashing and token rotation; scoping by role; CSV escaping |
-| API e2e | Vitest + supertest | `test/auth.e2e-spec.ts`, `test/rbac.e2e-spec.ts`, `test/request-lifecycle.e2e-spec.ts` | Cookies set and cleared; 401 / 403 / 404 matrix per role; the full Phase 3 script |
+| Unit | Vitest | `request-status.machine.spec.ts`, `csv.spec.ts`, `image-type.spec.ts`, `app.controller.spec.ts` | Every allowed and forbidden transition; CSV escaping; image type detection |
+| API e2e | Vitest + supertest | `test/auth.e2e-spec.ts`, `test/request-lifecycle.e2e-spec.ts`, `test/app.e2e-spec.ts` | Cookies, token rotation, user management; 401 / 403 / 404 per role; the full Phase 3 script; uploads, reports, audit. Auth and request services are tested here, against a real database, instead of with mocked unit tests |
 | Browser | Playwright | `apps/web/e2e/happy-path.spec.ts`, `global-setup.ts`, `playwright.config.ts` (written in Phase 4) | Requester submits → admin assigns → officer completes; role gates; URL filters; CSV download. Runs at desktop and phone size |
-| CI | GitHub Actions | `.github/workflows/ci.yml` | Lint, typecheck, unit and e2e against a Postgres service container |
+| Accessibility | Playwright + axe-core | `apps/web/e2e/accessibility.spec.ts` | WCAG 2.1 A and AA scan of 13 pages and an open dialog (replaces the Lighthouse check from Phase 4) |
+| CI | GitHub Actions | `.github/workflows/ci.yml` | Three jobs: API (lint, types, tests with coverage, build), web (lint, types, build), browser tests |
 
-e2e tests run against a separate database (`DATABASE_URL` from `.env.test`), reset before each run, with Cloudinary mocked.
+API e2e tests run against a separate database, `nyemaka_test` (settings in `apps/api/test/test-env.ts`), which `test/global-setup.ts` creates, migrates and seeds before each run; uploads use local-disk storage, never Cloudinary. `npm run test:cov -w api` runs unit and e2e together for one coverage report.
 
 **Checkpoint.**
 - `npm test -w api` and `npm run test:e2e -w api` pass.
-- The Playwright test passes on desktop and mobile viewports.
-- CI is green on a pull request.
-- Saved to `docs/screenshots/`: test output, the coverage summary and the Playwright report.
+- `npm run test:e2e -w web` passes on desktop and mobile viewports.
+- CI is green on a pull request (needs the repository on GitHub; see Phase 6).
+- `docs/TESTING.md` describes the strategy, the role matrix, the test cases and the defects found; raw output is saved in `docs/testing/`.
 
 ---
 

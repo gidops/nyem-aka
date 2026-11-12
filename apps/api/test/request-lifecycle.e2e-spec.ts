@@ -490,6 +490,45 @@ describe('Request lifecycle (e2e)', () => {
     });
   });
 
+  describe('categories: rename and delete', () => {
+    it('renames a category, refuses a duplicate name, and deletes an unused one', async () => {
+      const name = `${emails.prefix}Signage-${Date.now()}`;
+      const created = await http()
+        .post('/categories')
+        .set('Cookie', actors.admin.cookie)
+        .send({ name })
+        .expect(201);
+      const id = created.body.id as number;
+
+      const renamed = await http()
+        .patch(`/categories/${id}`)
+        .set('Cookie', actors.admin.cookie)
+        .send({ name: `${name}-renamed`, description: 'Signs and notice boards' })
+        .expect(200);
+      expect(renamed.body.name).toBe(`${name}-renamed`);
+
+      // "Plumbing" comes from the seed, so the name is taken.
+      await http().patch(`/categories/${id}`).set('Cookie', actors.admin.cookie).send({ name: 'Plumbing' }).expect(409);
+      await http().patch('/categories/999999').set('Cookie', actors.admin.cookie).send({ name: 'Nothing' }).expect(404);
+      await http().patch('/categories/abc').set('Cookie', actors.admin.cookie).send({ name: 'Nothing' }).expect(400);
+
+      await http().delete(`/categories/${id}`).set('Cookie', actors.requester.cookie).expect(403);
+      await http().delete(`/categories/${id}`).set('Cookie', actors.admin.cookie).expect(200);
+      await http().delete(`/categories/${id}`).set('Cookie', actors.admin.cookie).expect(404);
+
+      const actions = await prisma.auditLog.findMany({
+        where: { entity: 'Category', entityId: String(id) },
+        orderBy: { createdAt: 'asc' },
+        select: { action: true },
+      });
+      expect(actions.map((row) => row.action)).toEqual([
+        'category.created',
+        'category.updated',
+        'category.deleted',
+      ]);
+    });
+  });
+
   describe('reports', () => {
     it('summary counts by status and is admin-only', async () => {
       const summary = await http()

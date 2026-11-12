@@ -71,6 +71,8 @@ Each with a figure number and a one-line caption. Include desktop and mobile ver
 
 ## 10. Testing Evidence
 
+Most of this section is already drafted in [`TESTING.md`](./TESTING.md), with raw output in [`testing/`](./testing). Adapt it rather than starting from nothing.
+
 - Strategy: what is tested at each level and why (unit, API e2e, browser).
 - Test case table: ID, description, steps, expected, actual, pass/fail. Include the RBAC matrix (role × endpoint → 200/401/403/404).
 - Evidence: Vitest output, coverage summary, Playwright report, CI run, manual mobile checks.

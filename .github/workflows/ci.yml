@@ -1,0 +1,125 @@
+# Runs on every push to main and on every pull request.
+# A change is only safe to merge when all three jobs are green.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch cancels the run for the older one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (lint, types, unit + e2e tests, build)
+    runs-on: ubuntu-latest
+    services:
+      # A throwaway Postgres for the e2e tests, on the same port as local development.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nyemaka
+          POSTGRES_PASSWORD: nyemaka
+          POSTGRES_DB: nyemaka_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nyemaka -d nyemaka_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint -w api
+      - run: npm run typecheck -w api
+      # Unit and e2e tests together, with coverage. The e2e setup applies the
+      # migrations to the empty database first, so this also proves they work.
+      - run: npm run test:cov -w api
+      - run: npm run build -w api
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-coverage
+          path: apps/api/coverage
+          retention-days: 14
+
+  web:
+    name: Web (lint, types, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint -w web
+      - run: npm run typecheck -w web
+      - run: npm run build -w web
+
+  browser:
+    name: Browser tests (Playwright, desktop + phone)
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nyemaka
+          POSTGRES_PASSWORD: nyemaka
+          POSTGRES_DB: nyemaka
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nyemaka -d nyemaka"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://nyemaka:nyemaka@localhost:5433/nyemaka
+      DIRECT_URL: postgresql://nyemaka:nyemaka@localhost:5433/nyemaka
+      # Throwaway values: this database and these tokens exist only for this run.
+      JWT_ACCESS_SECRET: ci-only-access-secret
+      JWT_REFRESH_SECRET: ci-only-refresh-secret
+      JWT_ACCESS_TTL_SECONDS: 900
+      JWT_REFRESH_TTL_SECONDS: 604800
+      SEED_ADMIN_EMAIL: admin@nyemaka.local
+      SEED_ADMIN_PASSWORD: ci-only-admin-password
+      # "test" switches off the login rate limit, which the scripted sign-ins would hit.
+      NODE_ENV: test
+      PORT: 4000
+      API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium and its system libraries
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Create the schema and seed data
+        run: npx prisma migrate deploy && npx prisma db seed
+        working-directory: apps/api
+      - run: npm run build
+      - name: Start the API and the web app
+        run: |
+          (cd apps/api && node dist/main.js > ../../api.log 2>&1 &)
+          (cd apps/web && npx next start > ../../web.log 2>&1 &)
+          curl --silent --fail --retry 30 --retry-delay 1 --retry-connrefused http://localhost:4000/health
+          curl --silent --fail --retry 30 --retry-delay 1 --retry-connrefused --output /dev/null http://localhost:3000/
+      - name: Load demo data
+        run: npm run demo -w api
+      - run: npm run test:e2e -w web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            api.log
+            web.log
+          retention-days: 14

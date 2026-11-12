@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Phases 0 to 4 are done: the product is feature-complete locally.** API: auth, RBAC, users, categories, requests, attachments, audit trail, reports and CSV export, Swagger at `/docs`. Web: design system, landing page, and every page for the three roles, responsive. Tests: API unit and e2e, plus Playwright browser tests. **Not built yet:** CI workflow and collected test evidence (rest of Phase 5), deployment to Neon/Render/Vercel (Phase 6), the technical report. As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
+**Phases 0 to 5 are done: the product is feature-complete and tested locally** (20 unit, 42 API e2e, 32 browser tests; 96.5% API statement coverage). **Not done yet:** the repository is not on GitHub, so `.github/workflows/ci.yml` has never run; deployment to Neon/Render/Vercel (Phase 6); the technical report (outline in `docs/`, testing section drafted in `docs/TESTING.md`). As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
 
 The `CLAUDE.md` in the home directory (`/home/PSL-TECH-DEV-02/CLAUDE.md`) describes a different project (AATC VMS). Its stack, commands and architecture do **not** apply here.
 
@@ -43,7 +43,8 @@ apps/web/      Next.js. app/page.tsx (landing), app/(auth)/{login,register},
                app/(app)/{dashboard,requests,officer,admin/*} (signed-in area, shared AppShell),
                components/ui (design system), components/{requests,admin}, lib/ (data layer),
                proxy.ts, e2e/ (Playwright), scripts/screenshots.mjs
-docs/          BUILD_PLAN.md, TECHNICAL_REPORT_OUTLINE.md, screenshots/ (generated)
+docs/          BUILD_PLAN.md, TESTING.md, TECHNICAL_REPORT_OUTLINE.md, testing/ (test output), screenshots/ (generated)
+.github/       workflows/ci.yml (api, web, browser jobs)
 ```
 
 npm workspaces, one root lockfile. Vercel's root directory is `apps/web`; Render's is `apps/api`.
@@ -59,8 +60,10 @@ npm run dev:api                               # API on :4000 (GET /health)
 npm run dev:web                               # web on :3000
 npm test -w api                               # unit tests (Vitest)
 npm test -w api -- src/app.controller.spec.ts # single test file
-npm run test:e2e -w api                       # supertest e2e
+npm run test:e2e -w api                       # supertest e2e, in its own nyemaka_test database
+npm run test:cov -w api                       # unit + e2e together, with coverage
 npm run lint -w api                           # oxlint (type-aware)
+npm run typecheck -w api                      # tsc --noEmit
 npm run lint -w web                           # eslint
 npm run build                                 # build both apps
 npm run typecheck -w web                      # tsc --noEmit
@@ -80,7 +83,7 @@ npx prisma db seed                            # roles, categories, first admin (
 npx prisma studio                             # browse the data
 ```
 
-`npm run test:e2e -w api` needs the local database running; unit tests do not.
+`npm run test:e2e -w api` needs the Postgres container running; unit tests do not.
 
 ## Toolchain facts that differ from older tutorials
 
@@ -91,6 +94,8 @@ npx prisma studio                             # browse the data
 - **Specs that build a provider depending on `PrismaService` must supply a mock** (see `apps/api/src/app.controller.spec.ts`).
 - **Playwright's Chromium cannot start on this machine without help:** it lacks system libraries and there is no passwordless sudo. Working copies of the libraries are in `~/.cache/nyem-aka-browser-libs`; prefix browser commands with `LD_LIBRARY_PATH=$(cat ~/.cache/nyem-aka-browser-libs/ld-path)`. If that folder is missing, the proper fix is `sudo npx playwright install-deps chromium` (the user must run it).
 - **The login route is rate-limited to 5 a minute.** `e2e/global-setup.ts` reuses saved sessions and the demo and screenshot scripts wait and retry on 429. Do not loosen the limit to make scripts pass.
+- **`apps/api/prisma.config.ts` must not require a database URL.** `prisma generate` runs on every install (CI, Render, Vercel) before any env exists; the URL is read with `process.env` and omitted when absent. Do not switch it back to Prisma's `env()` helper, which throws.
+- **Browser tests run against whatever is on :3000 / :4000** (the dev database, with demo data). Run them against `next dev` as well as a production build: the dev server's slower navigation exposed a real race that the build hid.
 - **Browser tests leave their requests behind** (titles starting `E2E dripping tap`); there is no delete endpoint. Take report screenshots before running them.
 - **Local Postgres is on port 5433**, because 5432 on this machine is used by another project. Local connection string: `postgresql://nyemaka:nyemaka@localhost:5433/nyemaka`.
 
@@ -107,7 +112,7 @@ npx prisma studio                             # browse the data
 - **Two logs, two purposes.** `StatusLog` is the user-visible timeline of one request. `AuditLog` is the admin-only record of who did what across the system (logins, user changes, assignments, uploads), read through `GET /audit-logs`.
 - **User data leaves the API only through `users/user.select.ts`** (`publicUserSelect` + `toPublicUser`), so password and token hashes cannot leak. Reuse it for any query that returns a user.
 - **Audit writes go through `AuditService.log(entry, tx?)`.** Pass the transaction client when the audited change is in a transaction.
-- **HTTP setup lives in `src/app.setup.ts`** (`configureApp`), shared by `main.ts` and the e2e tests (`test/helpers.ts`). e2e files run in parallel against the local dev database; each uses `emailFactory('<suite>')` for its own `e2e-<suite>-` prefix and deletes only its own data afterwards (audit rows remain); rate limiting is skipped when `NODE_ENV=test`.
+- **HTTP setup lives in `src/app.setup.ts`** (`configureApp`), shared by `main.ts` and the e2e tests (`test/helpers.ts`). API e2e tests never touch dev data: `test/test-env.ts` points them at `nyemaka_test` and `test/global-setup.ts` migrates and seeds it before each run (admin there is `admin@test.local`). Files run in parallel; each uses `emailFactory('<suite>')` for its own `e2e-<suite>-` prefix and deletes only its own data afterwards; rate limiting is skipped when `NODE_ENV=test`.
 - **List endpoints** extend `PaginationQueryDto` and return `paginated(...)` from `src/common/pagination.ts`: `{ data, meta: { total, page, limit, totalPages } }`.
 - **Users are deactivated, not deleted** (`isActive`), so history keeps its foreign keys.
 - **Two database URLs:** `DATABASE_URL` (runtime; Neon's pooled string in production) and `DIRECT_URL` (Prisma CLI; Neon's direct string). Locally both point at the Docker database.

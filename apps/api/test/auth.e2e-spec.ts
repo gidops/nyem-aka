@@ -204,6 +204,88 @@ describe('Auth and RBAC (e2e)', () => {
         .expect(401);
     });
 
+    it('changing a role ends the session and applies on the next sign-in', async () => {
+      const admin = await loginAs(adminEmail, adminPassword);
+      const email = uniqueEmail('promote');
+      const created = await http()
+        .post('/users')
+        .set('Cookie', admin.cookie)
+        .send({ email, password, fullName: 'Rising Star', role: 'REQUESTER' })
+        .expect(201);
+      const before = await loginAs(email, password);
+
+      const changed = await http()
+        .patch(`/users/${created.body.id}/role`)
+        .set('Cookie', admin.cookie)
+        .send({ role: 'OFFICER' })
+        .expect(200);
+      expect(changed.body.role).toBe('OFFICER');
+
+      // The old session cannot be refreshed, so the old role cannot linger
+      // beyond the 15-minute life of the access token already issued.
+      await http().post('/auth/refresh').set('Cookie', before.cookie).expect(401);
+      const after = await loginAs(email, password);
+      expect(after.response.body.user.role).toBe('OFFICER');
+
+      await http()
+        .patch(`/users/${created.body.id}/role`)
+        .set('Cookie', admin.cookie)
+        .send({ role: 'SUPERUSER' })
+        .expect(400);
+
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'user.role_changed', entityId: created.body.id },
+      });
+      expect(audit?.metadata).toEqual({ from: 'REQUESTER', to: 'OFFICER' });
+    });
+
+    it('an admin edits a user, reactivates one, and filters the list', async () => {
+      const admin = await loginAs(adminEmail, adminPassword);
+      const email = uniqueEmail('edit');
+      const created = await http()
+        .post('/users')
+        .set('Cookie', admin.cookie)
+        .send({ email, password, fullName: 'Old Name', role: 'OFFICER' })
+        .expect(201);
+      const id = created.body.id as string;
+
+      const edited = await http()
+        .patch(`/users/${id}`)
+        .set('Cookie', admin.cookie)
+        .send({ fullName: '  New Name  ', department: 'Works' })
+        .expect(200);
+      expect(edited.body).toMatchObject({ fullName: 'New Name', department: 'Works', email });
+      // The email and password cannot be changed through this route.
+      await http()
+        .patch(`/users/${id}`)
+        .set('Cookie', admin.cookie)
+        .send({ email: 'someone-else@test.local' })
+        .expect(400);
+
+      await http().patch(`/users/${id}/status`).set('Cookie', admin.cookie).send({ isActive: false }).expect(200);
+      const inactive = await http()
+        .get(`/users?q=${encodeURIComponent(email)}&isActive=false`)
+        .set('Cookie', admin.cookie)
+        .expect(200);
+      expect(inactive.body.meta.total).toBe(1);
+      const active = await http()
+        .get(`/users?q=${encodeURIComponent(email)}&isActive=true`)
+        .set('Cookie', admin.cookie)
+        .expect(200);
+      expect(active.body.meta.total).toBe(0);
+
+      await http().patch(`/users/${id}/status`).set('Cookie', admin.cookie).send({ isActive: true }).expect(200);
+      await loginAs(email, password);
+
+      for (const path of ['', '/role', '/status']) {
+        await http()
+          .patch(`/users/no-such-user${path}`)
+          .set('Cookie', admin.cookie)
+          .send(path === '/role' ? { role: 'OFFICER' } : path === '/status' ? { isActive: true } : { fullName: 'Nobody' })
+          .expect(404);
+      }
+    });
+
     it('an admin cannot deactivate or demote themselves', async () => {
       const admin = await loginAs(adminEmail, adminPassword);
       const me = admin.response.body.user.id as string;
