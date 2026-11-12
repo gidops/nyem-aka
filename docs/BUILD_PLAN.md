@@ -360,7 +360,10 @@ res.cookie('access_token', accessToken, {
 - **One transaction per change.** Updating the status, writing the `StatusLog`, writing the `AuditLog` and (for assignment) switching `Assignment` rows happen in a single `prisma.$transaction`. Either all of it is saved or none, so the history can never disagree with the current state.
 - **Ownership scoping in the service.** A role check answers "may officers call this?"; it does not answer "is this *their* request?". `GET /requests` applies a `where` clause by role: requester → `requesterId = me`; officer → has an active assignment to me; admin → everything. Reading someone else's request returns 404, not 403, so ids cannot be probed.
 - **Pagination is offset-based** (`page`, `limit`, capped at 100) returning `{ data, meta: { total, page, limit, totalPages } }`. It is simple and fits numbered pages in an admin table.
-- **Images go to Cloudinary.** Render's disk is wiped on every deploy. The API accepts the upload in memory (multer), checks type (JPEG, PNG, WebP) and size (5 MB, max 5 per request), streams it to Cloudinary and stores only the URL and `publicId`.
+- **Images go to Cloudinary.** Render's disk is wiped on every deploy. The API accepts the upload in memory (multer), checks size (5 MB) and type (JPEG, PNG, WebP), streams it to Cloudinary and stores only the URL and `publicId`. Each person can add up to 5 images per request, so the officer can attach repair evidence even if the requester used their 5.
+- **The file type is read from the file's first bytes,** not from its name or the `Content-Type` the sender claims; both of those are trivially faked.
+- **Storage sits behind a small `StorageService` class.** The Cloudinary version is used when the three `CLOUDINARY_*` variables are set. Without them, development falls back to saving in `apps/api/uploads` so you can build and test before creating an account; in production the API refuses to start without Cloudinary.
+- **Simultaneous changes are detected.** A status is only updated if it is still the status that was checked (`updateMany` with the old status in the `where`). If two people act at once, the second gets 409 instead of both changes being applied.
 
 **Create (API).**
 
@@ -371,8 +374,10 @@ src/requests/
   request-status.machine.ts          canTransition(from, to, role), pure function
   dto/create-request.dto.ts  update-request.dto.ts  query-requests.dto.ts
       assign-request.dto.ts  change-status.dto.ts
-src/attachments/  module, controller, service, cloudinary.provider.ts
-src/common/       dto/pagination.dto.ts, paginate.ts
+src/attachments/  module, controller, service, image-type.ts,
+                  storage/{storage.service, cloudinary.storage, local-disk.storage, storage.provider}.ts
+src/audit/        audit.controller.ts, audit.dto.ts (the service exists from Phase 2)
+src/common/       pagination.ts (from Phase 2), prisma-errors.ts
 ```
 
 **Endpoints.**
@@ -388,9 +393,9 @@ src/common/       dto/pagination.dto.ts, paginate.ts
 | POST | `/requests/:id/cancel` | Owner, while PENDING |
 | POST | `/requests/:id/assign` | ADMIN |
 | PATCH | `/requests/:id/status` | Assigned officer, ADMIN |
-| POST | `/requests/:id/attachments` (multipart) | Owner, assigned officer |
+| POST | `/requests/:id/attachments` (multipart, field `file`) | Owner, assigned officer; not on a closed request |
 | DELETE | `/attachments/:id` | Uploader, ADMIN |
-| GET | `/audit-logs?entity=&actorId=&from=&to=&page=` | ADMIN |
+| GET | `/audit-logs?entity=&entityId=&actorId=&action=&from=&to=&page=` | ADMIN |
 
 **Checkpoint.** Run this script in Swagger using three accounts:
 1. Requester creates a request and uploads two images. Status is `PENDING`.
@@ -401,7 +406,9 @@ src/common/       dto/pagination.dto.ts, paginate.ts
 6. `GET /requests/:id` shows four timeline entries in order, with names and notes.
 7. Admin reassigns another request: the old `Assignment` has `isActive = false`, the new one `true`.
 8. `GET /requests?q=leak&status=PENDING&page=1&limit=5` returns the right rows and correct `meta`.
-9. `GET /audit-logs` lists every step above.
+9. `GET /audit-logs?entity=ServiceRequest&entityId=<id>` lists every step above.
+
+`npm run test:e2e -w api` automates this script (`test/request-lifecycle.e2e-spec.ts`), and `npm test -w api` checks every one of the 108 status/role combinations in the state machine.
 
 ---
 
@@ -508,7 +515,7 @@ e2e tests run against a separate database (`DATABASE_URL` from `.env.test`), res
 **Order and why.** Database first (the API needs it), API second (the web app needs its URL), web last.
 
 1. **Neon.** Create the project. Copy the pooled string to `DATABASE_URL` and the direct string to `DIRECT_URL`.
-2. **Cloudinary.** Create the account and copy the three credentials.
+2. **Cloudinary.** Create the account and copy the three credentials. This is the first time the Cloudinary code runs for real (development uses local disk), so test an upload and a delete straight after deploying.
 3. **Render (API).** New Web Service from the repository, root directory `apps/api`.
    - Build: `npm ci && npx prisma generate && npm run build`
    - Start: `npx prisma migrate deploy && node dist/main.js`

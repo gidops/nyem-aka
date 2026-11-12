@@ -9,7 +9,8 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { AuditService } from '../audit/audit.service.js';
-import { Prisma, RoleName } from '../generated/prisma/client.js';
+import { isUniqueViolation } from '../common/prisma-errors.js';
+import { RoleName } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   type PublicUser,
@@ -78,13 +79,7 @@ export class AuthService {
       });
       return this.startSession(toPublicUser(row));
     } catch (error) {
-      // P2002 is Prisma's code for "unique constraint failed": the email is taken.
-      // Letting the database enforce uniqueness is safer than checking first,
-      // because two simultaneous sign-ups could both pass a check.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException('An account with this email already exists');
       }
       throw error;

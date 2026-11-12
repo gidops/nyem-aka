@@ -19,7 +19,12 @@ const nextConfig: NextConfig = {
   // first-party: no CORS setup, and no third-party-cookie blocking between
   // the Vercel and Render domains.
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${API_URL}/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${API_URL}/:path*` },
+      // Development only: images saved by the API's local-disk storage.
+      // In production image URLs point at Cloudinary and this is never hit.
+      { source: "/uploads/:path*", destination: `${API_URL}/uploads/:path*` },
+    ];
   },
 };
 

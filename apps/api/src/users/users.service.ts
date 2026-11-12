@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { AuditService } from '../audit/audit.service.js';
+import { isUniqueViolation } from '../common/prisma-errors.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { type Paginated, paginated } from '../common/pagination.js';
 import { Prisma, type RoleName } from '../generated/prisma/client.js';
@@ -93,10 +94,7 @@ export class UsersService {
       });
       return toPublicUser(row);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new ConflictException('An account with this email already exists');
       }
       throw error;

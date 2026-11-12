@@ -3,6 +3,10 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import {
+  LOCAL_UPLOADS_DIR,
+  LOCAL_UPLOADS_PREFIX,
+} from './attachments/storage/local-disk.storage.js';
 import { ACCESS_COOKIE } from './auth/auth.constants.js';
 
 // Everything that shapes how the app handles HTTP lives here, in one function,
@@ -22,6 +26,10 @@ export function configureApp(app: NestExpressApplication) {
 
   // Parses the Cookie header into `req.cookies`, which is where the guards read tokens.
   app.use(cookieParser());
+
+  // Serves images saved by the development-only local storage. In production
+  // images live on Cloudinary and this folder does not exist.
+  app.useStaticAssets(LOCAL_UPLOADS_DIR, { prefix: LOCAL_UPLOADS_PREFIX });
 
   // Validates every request body/query against its DTO class.
   // whitelist + forbidNonWhitelisted: unknown fields are rejected, so a client cannot

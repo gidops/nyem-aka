@@ -4,10 +4,12 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   cookieHeader,
   createTestApp,
-  E2E_EMAIL_PREFIX,
+  emailFactory,
   setCookies,
-  uniqueEmail,
 } from './helpers.js';
+
+const emails = emailFactory('auth');
+const uniqueEmail = emails.unique;
 
 // Walks the Phase 2 checkpoint against the real application and database.
 describe('Auth and RBAC (e2e)', () => {
@@ -35,7 +37,7 @@ describe('Auth and RBAC (e2e)', () => {
   afterAll(async () => {
     // Remove the users this suite created. Their audit rows stay (actor becomes null).
     await prisma.user.deleteMany({
-      where: { email: { startsWith: E2E_EMAIL_PREFIX } },
+      where: { email: { startsWith: emails.prefix } },
     });
     await app.close();
   });

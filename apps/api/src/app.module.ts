@@ -2,9 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller.js';
+import { AttachmentsModule } from './attachments/attachments.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { CategoriesModule } from './categories/categories.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { RequestsModule } from './requests/requests.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
@@ -21,6 +24,9 @@ import { UsersModule } from './users/users.module.js';
     AuditModule,
     AuthModule,
     UsersModule,
+    CategoriesModule,
+    RequestsModule,
+    AttachmentsModule,
   ],
   controllers: [AppController],
   providers: [],
