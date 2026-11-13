@@ -2,8 +2,6 @@
 
 A University Maintenance & Service Request System. Students and staff report faults with photos; administrators assign them to maintenance officers; officers update progress until the work is complete. Every step is recorded.
 
-*Nyem aka* is Igbo for "lend me a hand".
-
 | | |
 | --- | --- |
 | Live site | <https://nyem-aka.vercel.app> |

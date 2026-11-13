@@ -85,7 +85,7 @@ export default function LandingPage() {
               </p>
               <h1 className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
                 Something broken on campus?{" "}
-                <span className="text-accent-strong">Lend it a hand.</span>
+                <span className="text-accent-strong">Get it fixed.</span>
               </h1>
               <p className="text-lg text-ink/80 sm:text-xl">
                 Nyem Aka is where students and staff report maintenance faults, and where each one
@@ -186,12 +186,7 @@ export default function LandingPage() {
       {/* The dark band is where the logo's light ("inverse") version is used. */}
       <footer className="bg-ink text-surface">
         <div className={`${container} flex flex-col gap-8 py-10 md:flex-row md:items-center md:justify-between`}>
-          <div className="flex flex-col gap-3">
-            <Logo tone="inverse" tagline />
-            <p className="text-sm">
-              <em>Nyem aka</em> is Igbo for &ldquo;lend me a hand&rdquo;.
-            </p>
-          </div>
+          <Logo tone="inverse" tagline />
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             {NAV.map((link) => (
               <a key={link.href} href={link.href} className="hover:underline">

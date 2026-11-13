@@ -1,6 +1,6 @@
 import { cn } from "./cn";
 
-// The Nyem Aka logo: an open hand holding up a spanner ("lend me a hand" + maintenance).
+// The Nyem Aka logo: an open hand holding up a spanner (a helping hand + maintenance).
 //
 // One component draws every version, so the logo cannot drift between pages:
 //   tone      "brand"   terracotta badge, for the light canvas (the default)
