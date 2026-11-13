@@ -8,6 +8,7 @@ import { cn } from "./cn";
 //   wordmark  "always"  symbol + name        "from-sm" symbol only on phones
 //             "never"   symbol only (the name stays available to screen readers)
 //   size      "sm" | "md" | "lg"
+//   tagline   adds "Maintenance & service requests" under the name (wide screens only)
 //
 // Colours come from the design tokens. The only copies with fixed hex values are
 // app/icon.svg and app/apple-icon.png (the browser-tab icons), which cannot read CSS.
@@ -71,9 +72,11 @@ export function Logo({
   tone = "brand",
   size = "md",
   wordmark = "always",
+  tagline = false,
   className,
 }: {
   tone?: Tone;
+  tagline?: boolean;
   size?: keyof typeof SIZES;
   wordmark?: "always" | "from-sm" | "never";
   className?: string;
@@ -84,15 +87,26 @@ export function Logo({
       <LogoMark size={mark} tone={tone} />
       <span
         className={cn(
-          "font-display font-semibold tracking-tight whitespace-nowrap",
-          text,
+          "flex flex-col leading-none",
           tone === "brand" ? "text-ink" : "text-surface",
           // sr-only hides the name visually but keeps it as the link's accessible name.
           wordmark === "never" && "sr-only",
           wordmark === "from-sm" && "sr-only sm:not-sr-only",
         )}
       >
-        Nyem <span className={tone === "brand" ? "text-accent-strong" : undefined}>Aka</span>
+        <span className={cn("font-display font-semibold tracking-tight whitespace-nowrap", text)}>
+          Nyem <span className={tone === "brand" ? "text-accent-strong" : undefined}>Aka</span>
+        </span>
+        {tagline && (
+          <span
+            className={cn(
+              "mt-1 hidden text-xs font-medium whitespace-nowrap sm:block",
+              tone === "brand" && "text-muted",
+            )}
+          >
+            Maintenance &amp; service requests
+          </span>
+        )}
       </span>
     </span>
   );
