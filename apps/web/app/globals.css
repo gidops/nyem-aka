@@ -57,6 +57,26 @@ dialog::backdrop {
   background: rgb(43 42 40 / 0.45);
 }
 
+/*
+ * The logo's loading animation: the spanner rocks about the centre of its jaw, as if
+ * tightening a bolt, while the hand stays still. Used by <LogoMark animated>.
+ */
+.logo-spanner {
+  transform-box: view-box;
+  transform-origin: 22.3px 8px;
+  animation: logo-tighten 1.1s ease-in-out infinite;
+}
+
+@keyframes logo-tighten {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(22deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-**Phases 0 to 5 are done: the product is feature-complete and tested locally** (20 unit, 42 API e2e, 32 browser tests; 96.5% API statement coverage). The code is on GitHub (`gidops/nyem-aka`, private) and CI is green on all three jobs. **Phase 6 in progress:** Neon is created and linked and Cloudinary is verified; still to do are Render, Vercel and the production smoke test (`docs/DEPLOYMENT.md`). Also not done: the technical report (outline in `docs/`, testing section drafted in `docs/TESTING.md`). As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
+**Phases 0 to 5 are done: the product is feature-complete and tested locally** (20 unit, 42 API e2e, 32 browser tests; 96.5% API statement coverage). The code is on GitHub (`gidops/nyem-aka`, private) and CI is green on all three jobs. **Phase 6 in progress:** all four services are live (web <https://nyem-aka.vercel.app>, API <https://nyem-aka-api.onrender.com>); the Vercel→Render→Neon chain was checked with curl on 2026-11-13, but the signed-in smoke test in `docs/DEPLOYMENT.md` (photo upload, image surviving a redeploy, audit-log IP check for `TRUST_PROXY_HOPS`) is still to do. Also not done: the technical report (outline in `docs/`, testing section drafted in `docs/TESTING.md`). As each phase lands, replace the planned detail with what actually exists, and correct anything that turned out different.
 
 The `CLAUDE.md` in the home directory (`/home/PSL-TECH-DEV-02/CLAUDE.md`) describes a different project (AATC VMS). Its stack, commands and architecture do **not** apply here.
 
@@ -138,5 +138,7 @@ npx prisma studio                             # browse the data
 ## Design direction
 
 Inspired by Oracle's Redwood style without using Oracle logos, fonts or assets: warm off-white canvas, charcoal text, one terracotta accent, flat bordered cards (no shadows), pill buttons, a wide hero band, tabbed sections, generous whitespace. Colours are defined once as tokens in `apps/web/app/globals.css`; components use the tokens, never raw hex values.
+
+**The logo is one component, `apps/web/components/ui/logo.tsx`** (an open hand holding up a spanner): `Logo` takes `tone` (`brand` for the light canvas, `inverse` for the dark footer and the terracotta sign-in panel), `size`, and `wordmark` (`from-sm` shows the symbol alone on phones; the name stays in the accessible name). `LogoMark animated` is the loading indicator used by `Loading` (`size="page"` for whole-screen loads); its keyframes are in `globals.css`. `app/icon.svg` and `app/apple-icon.png` are fixed-colour copies of the same drawing for the browser tab; change them together with the component. Text placed on `bg-accent` must be full `text-surface`, since anything lighter fails contrast.
 
 Every page must work on mobile: build mobile-first, tables collapse to stacked cards below `md`, and navigation becomes a drawer.

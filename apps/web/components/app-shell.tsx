@@ -11,6 +11,7 @@ import { useMe } from "@/lib/queries";
 import type { RoleName, User } from "@/lib/types";
 import { Button, ButtonLink } from "./ui/button";
 import { cn } from "./ui/cn";
+import { Logo } from "./ui/logo";
 import { EmptyState, ErrorState, Loading } from "./ui/states";
 
 // The signed-in user, available to every page inside the shell without refetching.
@@ -62,7 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (me.isPending) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <Loading label="Loading your account…" />
+        <Loading size="page" label="Loading your account…" />
       </div>
     );
   }
@@ -106,8 +107,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <UserContext.Provider value={user}>
       <header className="sticky top-0 z-40 border-b border-line bg-canvas">
         <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center gap-4 px-4 sm:px-6">
-          <Link href={HOME_BY_ROLE[user.role]} className="font-display text-xl font-semibold">
-            Nyem Aka
+          <Link href={HOME_BY_ROLE[user.role]} className="flex min-h-11 items-center rounded-lg">
+            <Logo wordmark="from-sm" />
           </Link>
 
           <nav aria-label="Main" className="hidden flex-1 items-center gap-1 lg:flex">

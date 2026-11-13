@@ -11,7 +11,7 @@ import { Loading } from "@/components/ui/states";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const fallback = (
     <div className="flex flex-1 items-center justify-center">
-      <Loading />
+      <Loading size="page" />
     </div>
   );
   return (

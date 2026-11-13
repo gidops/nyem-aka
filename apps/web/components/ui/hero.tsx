@@ -8,12 +8,14 @@ export function Hero({
   title,
   description,
   actions,
+  art,
   size = "md",
 }: {
   eyebrow?: string;
   title: string;
   description?: React.ReactNode;
   actions?: React.ReactNode;
+  art?: React.ReactNode; // decoration beside the text; shown on wide screens only
   size?: "md" | "lg";
 }) {
   return (
@@ -27,8 +29,15 @@ export function Hero({
         {eyebrow && (
           <p className="text-sm font-semibold tracking-wide text-accent-strong uppercase">{eyebrow}</p>
         )}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex max-w-3xl flex-col gap-3">
+        <div
+          className={cn(
+            "flex flex-col gap-4",
+            // App pages put their actions beside the title; the landing page stacks
+            // them under the text and gives the right-hand side to the artwork.
+            size === "lg" ? "lg:flex-row lg:items-center lg:justify-between lg:gap-12" : "sm:flex-row sm:items-end sm:justify-between",
+          )}
+        >
+          <div className={cn("flex max-w-3xl flex-col gap-3", size === "lg" && "gap-5")}>
             <h1
               className={cn(
                 "font-display font-semibold tracking-tight text-balance",
@@ -42,8 +51,14 @@ export function Hero({
                 {description}
               </p>
             )}
+            {size === "lg" && actions && (
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row">{actions}</div>
+            )}
           </div>
-          {actions && <div className="flex flex-col gap-3 sm:flex-row sm:shrink-0">{actions}</div>}
+          {size === "md" && actions && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:shrink-0">{actions}</div>
+          )}
+          {art && <div className="hidden shrink-0 lg:block">{art}</div>}
         </div>
       </div>
     </section>

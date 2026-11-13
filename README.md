@@ -6,8 +6,8 @@ A University Maintenance & Service Request System. Students and staff report fau
 
 | | |
 | --- | --- |
-| Live site | _add the Vercel address after deploying_ |
-| API documentation (Swagger) | _add `https://<api>.onrender.com/docs` after deploying_ |
+| Live site | <https://nyem-aka.vercel.app> |
+| API documentation (Swagger) | <https://nyem-aka-api.onrender.com/docs> |
 
 ## Features
 

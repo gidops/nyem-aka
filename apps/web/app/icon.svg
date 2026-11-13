@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Browser-tab icon. Same drawing as components/ui/logo.tsx; keep the two in step. -->
+  <rect width="32" height="32" rx="8" fill="#b5482a"/>
+  <g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26.5 8A4.2 4.2 0 1 1 22.3 3.8"/>
+    <path d="M19.3 11 14.3 16"/>
+    <path d="M3.5 23.5l3.5-2.6c.5-.4 1.1-.6 1.8-.6h5.4a1.9 1.9 0 0 1 0 3.8H11"/>
+    <path d="M3.5 28.5h10.3c1.5 0 2.9-.6 4-1.6l7.2-6.4a1.9 1.9 0 0 0-2.6-2.8l-5.2 4.3"/>
+  </g>
+</svg>

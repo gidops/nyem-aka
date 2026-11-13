@@ -3,6 +3,7 @@ import { RoleTabs } from "@/components/role-tabs";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Hero } from "@/components/ui/hero";
+import { Logo, LogoMark } from "@/components/ui/logo";
 
 const STEPS = [
   {
@@ -26,7 +27,7 @@ export default function LandingPage() {
     <>
       <header className="border-b border-line bg-canvas">
         <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <span className="font-display text-xl font-semibold">Nyem Aka</span>
+          <Logo />
           <ButtonLink href="/login" variant="secondary" size="sm">
             Sign in
           </ButtonLink>
@@ -39,6 +40,7 @@ export default function LandingPage() {
           eyebrow="University maintenance & service requests"
           title="Something broken on campus? Lend it a hand."
           description="Nyem Aka is where students and staff report maintenance faults, and where each one is assigned, fixed and accounted for."
+          art={<LogoMark size={220} />}
           actions={
             <>
               <ButtonLink href="/register">Report a fault</ButtonLink>
@@ -70,12 +72,21 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-8 text-sm text-muted sm:flex-row sm:justify-between sm:px-6">
-          <p>Nyem Aka · University Maintenance &amp; Service Request System</p>
-          <Link href="/login" className="underline">
-            Staff and officer sign-in
-          </Link>
+      {/* The dark band is where the logo's light ("inverse") version is used. */}
+      <footer className="bg-ink text-surface">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-col gap-3">
+            <Logo tone="inverse" />
+            <p className="text-sm">
+              <em>Nyem aka</em> is Igbo for &ldquo;lend me a hand&rdquo;.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 text-sm sm:items-end">
+            <p>University Maintenance &amp; Service Request System</p>
+            <Link href="/login" className="underline">
+              Staff and officer sign-in
+            </Link>
+          </div>
         </div>
       </footer>
     </>
