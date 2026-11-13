@@ -27,7 +27,8 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "demo": "tsx scripts/demo-data.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check:cloudinary": "tsx scripts/check-cloudinary.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

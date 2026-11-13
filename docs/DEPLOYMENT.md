@@ -55,6 +55,14 @@ You do not need to create tables by hand. The API applies the migrations itself 
 1. Sign up at <https://cloudinary.com>.
 2. From the dashboard, copy **Cloud name**, **API key** and **API secret**.
 
+3. Check them before deploying. Add the three values to `apps/api/.env` (never to a committed file), then run:
+
+   ```bash
+   npm run check:cloudinary -w api
+   ```
+
+   It uploads a tiny test image through the API's own storage code, fetches it back and deletes it. While those values are in `.env`, your local app also stores uploads on Cloudinary; remove them again to go back to local-disk storage.
+
 **Why.** Render's disk is erased on every deploy, so uploaded images must live elsewhere. The API refuses to start in production without these three values, rather than silently losing images later.
 
 ## 4. Render (API)
